@@ -87,7 +87,6 @@
         </button>
       </header>
 
-      <!-- Navegação -->
       <div
         class="flex gap-2 mb-6 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs sm:text-sm"
       >
@@ -135,11 +134,27 @@
         <div id="results-container" class="space-y-3"></div>
       </section>
 
-      <!-- REGISTRAR OCORRÊNCIA -->
+      <!-- REGISTRAR / EDITAR OCORRÊNCIA -->
       <section
         id="tab-cadastrar"
         class="hidden bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4"
       >
+        <div class="flex justify-between items-center mb-2">
+          <h3
+            id="form-ocorrencia-titulo"
+            class="text-sm font-bold text-sky-400"
+          >
+            Registrar Nova Ocorrência
+          </h3>
+          <button
+            id="btn-cancelar-edicao"
+            onclick="cancelarEdicaoOcorrencia()"
+            class="hidden text-xs text-amber-400 hover:underline"
+          >
+            Cancelar Edição
+          </button>
+        </div>
+
         <form onsubmit="salvarOcorrencia(event)" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -274,6 +289,16 @@
     <script>
       const API_URL = "https://rshjl3023l.execute-api.us-east-1.amazonaws.com";
       let usuarioLogado = null;
+      let tokenSessao = sessionStorage.getItem("token") || null;
+      let ocorrenciaEditandoId = null;
+      let listaOcorrenciasCache = [];
+
+      function getAuthHeaders() {
+        return {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenSessao}`,
+        };
+      }
 
       async function executarLogin(e) {
         e.preventDefault();
@@ -287,10 +312,13 @@
             body: JSON.stringify({ usuario, senha }),
           });
 
-          if (!res.ok) throw new Error("Credenciais inválidas");
           const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Credenciais inválidas");
 
           usuarioLogado = data;
+          tokenSessao = data.token;
+          sessionStorage.setItem("token", tokenSessao);
+
           document.getElementById("label-tecnico").innerText =
             `${data.usuario} (${data.role})`;
           document.getElementById("login-screen").classList.add("hidden");
@@ -309,6 +337,8 @@
 
       function logout() {
         usuarioLogado = null;
+        tokenSessao = null;
+        sessionStorage.removeItem("token");
         document.getElementById("app-screen").classList.add("hidden");
         document.getElementById("login-screen").classList.remove("hidden");
       }
@@ -331,8 +361,8 @@
       async function carregarDropdowns() {
         try {
           const [resLinhas, resEquip] = await Promise.all([
-            fetch(`${API_URL}/linhas`),
-            fetch(`${API_URL}/equipamentos`),
+            fetch(`${API_URL}/linhas`, { headers: getAuthHeaders() }),
+            fetch(`${API_URL}/equipamentos`, { headers: getAuthHeaders() }),
           ]);
 
           const linhas = await resLinhas.json();
@@ -362,26 +392,44 @@
         try {
           const res = await fetch(
             `${API_URL}/diagnosticos?busca=${encodeURIComponent(termo)}`,
+            {
+              headers: getAuthHeaders(),
+            },
           );
           const data = await res.json();
+          listaOcorrenciasCache = data;
 
           container.innerHTML = data.length
             ? data
-                .map(
-                  (item) => `
-          <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div class="flex justify-between items-start mb-2">
-              <span class="font-bold text-sky-400">${item.id_linha || "Geral"} - ${item.id_equipamento || "Equipamento"}</span>
-              <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">${item.codigo_falha || "S/N"}</span>
+                .map((item) => {
+                  const idCod = item.codigo_erro || item.id;
+                  const isAdmin =
+                    usuarioLogado && usuarioLogado.role === "admin";
+
+                  return `
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-2">
+              <div class="flex justify-between items-start">
+                <span class="font-bold text-sky-400">${item.id_linha || "Geral"} - ${item.id_equipamento || "Equipamento"}</span>
+                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">${item.codigo_falha || "S/N"}</span>
+              </div>
+              <p class="text-sm text-slate-300">${item.descricao_solucao}</p>
+              <div class="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-700/50">
+                <span>Técnico: ${item.id_tecnico || "Desconhecido"}</span>
+                <span>${item.data ? new Date(item.data).toLocaleString("pt-BR") : ""}</span>
+              </div>
+              ${
+                isAdmin
+                  ? `
+                <div class="flex justify-end gap-2 pt-2">
+                  <button onclick="prepararEdicaoOcorrencia('${idCod}')" class="text-xs bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 px-2.5 py-1 rounded transition">Editar</button>
+                  <button onclick="excluirOcorrencia('${idCod}')" class="text-xs bg-red-600/20 text-red-400 hover:bg-red-600/40 px-2.5 py-1 rounded transition">Excluir</button>
+                </div>
+              `
+                  : ""
+              }
             </div>
-            <p class="text-sm text-slate-300 mb-2">${item.descricao_solucao}</p>
-            <div class="flex justify-between items-center text-xs text-slate-500">
-              <span>Técnico: ${item.id_tecnico || "Desconhecido"}</span>
-              <span>${item.data ? new Date(item.data).toLocaleString("pt-BR") : ""}</span>
-            </div>
-          </div>
-        `,
-                )
+          `;
+                })
                 .join("")
             : '<p class="text-center text-slate-500 py-4">Nenhum registro encontrado.</p>';
         } catch (err) {
@@ -389,40 +437,105 @@
         }
       }
 
+      function prepararEdicaoOcorrencia(codigoErro) {
+        const item = listaOcorrenciasCache.find(
+          (o) => (o.codigo_erro || o.id) === codigoErro,
+        );
+        if (!item) return;
+
+        ocorrenciaEditandoId = codigoErro;
+        document.getElementById("select-linha").value = item.id_linha;
+        document.getElementById("select-equipamento").value =
+          item.id_equipamento;
+        document.getElementById("cad-falha").value = item.codigo_falha;
+        document.getElementById("cad-solucao").value = item.descricao_solucao;
+
+        document.getElementById("form-ocorrencia-titulo").innerText =
+          "Editar Ocorrência";
+        document.getElementById("btn-salvar-ocorrencia").innerText =
+          "Atualizar Ocorrência";
+        document
+          .getElementById("btn-cancelar-edicao")
+          .classList.remove("hidden");
+
+        switchTab("cadastrar");
+      }
+
+      function cancelarEdicaoOcorrencia() {
+        ocorrenciaEditandoId = null;
+        document.getElementById("cad-falha").value = "";
+        document.getElementById("cad-solucao").value = "";
+        document.getElementById("form-ocorrencia-titulo").innerText =
+          "Registrar Nova Ocorrência";
+        document.getElementById("btn-salvar-ocorrencia").innerText =
+          "Registrar Ocorrência";
+        document.getElementById("btn-cancelar-edicao").classList.add("hidden");
+      }
+
       async function salvarOcorrencia(e) {
         e.preventDefault();
         const btn = document.getElementById("btn-salvar-ocorrencia");
         btn.disabled = true;
-        btn.innerText = "Salvando...";
 
+        const isEdicao = Boolean(ocorrenciaEditandoId);
         const payload = {
           id_linha: document.getElementById("select-linha").value,
           id_equipamento: document.getElementById("select-equipamento").value,
-          id_tecnico: usuarioLogado.usuario,
           codigo_falha: document.getElementById("cad-falha").value,
           descricao_solucao: document.getElementById("cad-solucao").value,
           data: new Date().toISOString(),
         };
 
+        if (isEdicao) {
+          payload.codigo_erro = ocorrenciaEditandoId;
+        }
+
         try {
           const res = await fetch(`${API_URL}/diagnosticos`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: isEdicao ? "PUT" : "POST",
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload),
           });
 
-          if (!res.ok) throw new Error("Erro ao salvar no servidor");
+          const data = await res.json();
+          if (!res.ok)
+            throw new Error(data.error || "Erro ao salvar no servidor");
 
-          alert("Ocorrência registrada com sucesso!");
-          document.getElementById("cad-falha").value = "";
-          document.getElementById("cad-solucao").value = "";
+          alert(
+            isEdicao
+              ? "Ocorrência atualizada com sucesso!"
+              : "Ocorrência registrada com sucesso!",
+          );
+          cancelarEdicaoOcorrencia();
           switchTab("consultar");
           buscarOcorrencias();
         } catch (err) {
           alert("Falha ao salvar ocorrência: " + err.message);
         } finally {
           btn.disabled = false;
-          btn.innerText = "Registrar Ocorrência";
+        }
+      }
+
+      async function excluirOcorrencia(codigoErro) {
+        if (!confirm("Tem certeza que deseja excluir esta ocorrência?")) return;
+
+        try {
+          const res = await fetch(
+            `${API_URL}/diagnosticos?codigo_erro=${encodeURIComponent(codigoErro)}`,
+            {
+              method: "DELETE",
+              headers: getAuthHeaders(),
+            },
+          );
+
+          const data = await res.json();
+          if (!res.ok)
+            throw new Error(data.error || "Falha ao excluir ocorrência");
+
+          alert("Ocorrência excluída com sucesso!");
+          buscarOcorrencias();
+        } catch (err) {
+          alert(err.message);
         }
       }
 
@@ -437,7 +550,9 @@
 
       async function carregarUsuarios() {
         try {
-          const res = await fetch(`${API_URL}/usuarios`);
+          const res = await fetch(`${API_URL}/usuarios`, {
+            headers: getAuthHeaders(),
+          });
           const users = await res.json();
           const container = document.getElementById("users-list-container");
 
@@ -487,6 +602,7 @@
             `${API_URL}/usuarios?usuario=${encodeURIComponent(usuario)}`,
             {
               method: "DELETE",
+              headers: getAuthHeaders(),
             },
           );
 
@@ -510,7 +626,7 @@
         try {
           const res = await fetch(`${API_URL}/usuarios`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload),
           });
 
