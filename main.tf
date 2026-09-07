@@ -165,13 +165,14 @@ resource "aws_lambda_function" "api_lambda" {
 # ------------------------------------------------------------------------------
 
 resource "aws_apigatewayv2_api" "http_api" {
-  name          = "api-sistema-tecnicos"
+  name          = "api_sistema_tecnicos"
   protocol_type = "HTTP"
 
   cors_configuration {
     allow_origins = ["*"]
-    allow_methods = ["POST", "GET", "OPTIONS"]
-    allow_headers = ["content-type"]
+    allow_methods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+    allow_headers = ["content-type", "authorization", "x-amz-date", "x-api-key"]
+    max_age       = 300
   }
 }
 
