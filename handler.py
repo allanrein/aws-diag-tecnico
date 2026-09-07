@@ -41,17 +41,19 @@ def lambda_handler(event, context):
         body = {}
 
     # ROTA: POST /login
+    # ROTA: POST /login
     if raw_path == '/login' and http_method == 'POST':
         usuario = body.get('usuario')
         senha = body.get('senha')
 
         tabela = dynamodb.Table(TABELA_USUARIOS)
-        resposta = tabela.get_item(Key={'usuario': usuario})
+        # Ajustado para consultar a chave primária 'id'
+        resposta = tabela.get_item(Key={'id': usuario})
         item = resposta.get('Item')
 
         if item and item.get('senha') == senha:
             return build_response(200, {
-                'usuario': item['usuario'],
+                'usuario': item.get('usuario', item.get('id')),
                 'role': item.get('role', 'tecnico')
             })
         return build_response(401, {'error': 'Usuário ou senha incorretos'})
