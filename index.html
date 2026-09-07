@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Auxílio Técnico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-slate-100 min-h-screen text-slate-800 flex flex-col items-center p-3 sm:p-6"
+  >
+    <main
+      class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200"
+    >
+      <!-- Cabeçalho -->
+      <header
+        class="bg-slate-900 text-white p-5 flex items-center justify-between"
+      >
+        <div>
+          <h1 class="text-xl font-bold tracking-wide">Auxílio Técnico Cloud</h1>
+          <p class="text-xs text-slate-400">
+            Gestão Industrial & Diagnósticos AWS
+          </p>
+        </div>
+        <span
+          class="bg-blue-600 text-xs px-3 py-1 rounded-full font-mono font-semibold"
+          >v2.0</span
+        >
+      </header>
+
+      <!-- Navegação por Abas -->
+      <nav class="flex border-b border-slate-200 bg-slate-50">
+        <button
+          onclick="switchTab('tab-consulta')"
+          id="btn-tab-consulta"
+          class="flex-1 py-3 text-sm font-semibold text-blue-600 border-b-2 border-blue-600 transition"
+        >
+          🔍 Consulta
+        </button>
+        <button
+          onclick="switchTab('tab-defeito')"
+          id="btn-tab-defeito"
+          class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition"
+        >
+          ⚠️ Defeitos
+        </button>
+        <button
+          onclick="switchTab('tab-admin')"
+          id="btn-tab-admin"
+          class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition"
+        >
+          👤 Admin
+        </button>
+      </nav>
+
+      <div class="p-6">
+        <!-- ABA 1: CONSULTA DE DIAGNÓSTICO -->
+        <section id="tab-consulta" class="space-y-4">
+          <h2 class="text-lg font-bold text-slate-900 mb-2">
+            Consulta Rápida de Erro
+          </h2>
+          <form id="formConsulta" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >CÓDIGO DE ERRO / FALHA</label
+              >
+              <input
+                type="text"
+                id="codigoErro"
+                placeholder="Ex: E-101"
+                required
+                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 font-mono text-lg uppercase outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow transition"
+            >
+              Buscar Procedimento
+            </button>
+          </form>
+
+          <div
+            id="resConsulta"
+            class="hidden mt-4 p-4 rounded-xl border bg-blue-50 border-blue-200"
+          >
+            <p class="text-xs font-bold text-blue-700 uppercase">
+              Procedimento Recomendado:
+            </p>
+            <p id="txtConsulta" class="text-slate-800 font-medium mt-1"></p>
+          </div>
+        </section>
+
+        <!-- ABA 2: REGISTRO DE DEFEITOS -->
+        <section id="tab-defeito" class="hidden space-y-4">
+          <h2 class="text-lg font-bold text-slate-900 mb-2">
+            Registrar Ocorrência
+          </h2>
+          <form id="formDefeito" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >ID LINHA</label
+                >
+                <input
+                  type="text"
+                  id="defLinha"
+                  placeholder="Ex: LINHA-01"
+                  required
+                  class="w-full p-2 border rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >ID EQUIPAMENTO</label
+                >
+                <input
+                  type="text"
+                  id="defEquipamento"
+                  placeholder="Ex: INV-02"
+                  required
+                  class="w-full p-2 border rounded-lg text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >ID TÉCNICO (USUÁRIO)</label
+              >
+              <input
+                type="text"
+                id="defUser"
+                placeholder="ID do usuário responsável"
+                required
+                class="w-full p-2 border rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >DESCRIÇÃO DA FALHA</label
+              >
+              <textarea
+                id="defDescricao"
+                rows="2"
+                placeholder="Descreva o sintoma observado..."
+                required
+                class="w-full p-2 border rounded-lg text-sm"
+              ></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >SOLUÇÃO APLICADA</label
+              >
+              <textarea
+                id="defSolucao"
+                rows="2"
+                placeholder="Ação corretiva realizada..."
+                class="w-full p-2 border rounded-lg text-sm"
+              ></textarea>
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow transition"
+            >
+              Salvar Ocorrência
+            </button>
+          </form>
+          <div
+            id="resDefeito"
+            class="hidden p-3 rounded-lg text-sm font-medium"
+          ></div>
+        </section>
+
+        <!-- ABA 3: ADMIN (CADASTRO DE USUÁRIO) -->
+        <section id="tab-admin" class="hidden space-y-4">
+          <h2 class="text-lg font-bold text-slate-900 mb-2">
+            Cadastrar Novo Usuário
+          </h2>
+          <form id="formUser" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >NOME</label
+                >
+                <input
+                  type="text"
+                  id="usrNome"
+                  required
+                  class="w-full p-2 border rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >SOBRENOME</label
+                >
+                <input
+                  type="text"
+                  id="usrSobrenome"
+                  required
+                  class="w-full p-2 border rounded-lg text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >E-MAIL</label
+              >
+              <input
+                type="email"
+                id="usrEmail"
+                required
+                class="w-full p-2 border rounded-lg text-sm"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >TELEFONE</label
+                >
+                <input
+                  type="text"
+                  id="usrTelefone"
+                  class="w-full p-2 border rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"
+                  >NÍVEL</label
+                >
+                <select
+                  id="usrNivel"
+                  class="w-full p-2 border rounded-lg text-sm bg-white"
+                >
+                  <option value="tecnico">Técnico</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow transition"
+            >
+              Cadastrar Usuário
+            </button>
+          </form>
+          <div
+            id="resUser"
+            class="hidden p-3 rounded-lg text-sm font-medium"
+          ></div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      // Cole aqui a URL exata do seu API Gateway gerada pelo Terraform
+      const API_URL =
+        "https://rshjl3023l.execute-api.us-east-1.amazonaws.com/diagnostico";
+
+      // Troca de Abas
+      function switchTab(tabId) {
+        ["tab-consulta", "tab-defeito", "tab-admin"].forEach((id) => {
+          document.getElementById(id).classList.add("hidden");
+          document.getElementById(`btn-${id}`).className =
+            "flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition";
+        });
+        document.getElementById(tabId).classList.remove("hidden");
+        document.getElementById(`btn-${tabId}`).className =
+          "flex-1 py-3 text-sm font-semibold text-blue-600 border-b-2 border-blue-600 transition";
+      }
+
+      // Função Auxiliar de Requisição
+      async function sendApi(payload) {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return await response.json();
+      }
+
+      // 1. Evento: Consulta Diagnóstico
+      document
+        .getElementById("formConsulta")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const codigo = document
+            .getElementById("codigoErro")
+            .value.trim()
+            .toUpperCase();
+          const resCard = document.getElementById("resConsulta");
+          const txt = document.getElementById("txtConsulta");
+
+          const data = await sendApi({
+            acao: "buscar_diagnostico",
+            codigo_erro: codigo,
+          });
+          txt.textContent = data.solucao || "Código não cadastrado.";
+          resCard.classList.remove("hidden");
+        });
+
+      // 2. Evento: Registrar Defeito
+      document
+        .getElementById("formDefeito")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const box = document.getElementById("resDefeito");
+          const payload = {
+            acao: "registrar_defeito",
+            dados: {
+              id_linha: document.getElementById("defLinha").value,
+              id_equipamento: document.getElementById("defEquipamento").value,
+              id_user: document.getElementById("defUser").value,
+              descricao: document.getElementById("defDescricao").value,
+              solucao_aplicada: document.getElementById("defSolucao").value,
+              status: "Resolvido",
+            },
+          };
+
+          try {
+            const data = await sendApi(payload);
+            box.className =
+              "p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800";
+            box.textContent = `Sucesso! ID da ocorrência: ${data.id}`;
+          } catch (err) {
+            box.className = "p-3 rounded-lg text-sm bg-red-100 text-red-800";
+            box.textContent = "Erro ao registrar ocorrência.";
+          }
+          box.classList.remove("hidden");
+        });
+
+      // 3. Evento: Cadastrar Usuário
+      document
+        .getElementById("formUser")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const box = document.getElementById("resUser");
+          const payload = {
+            acao: "cadastrar_usuario",
+            dados: {
+              nome: document.getElementById("usrNome").value,
+              sobrenome: document.getElementById("usrSobrenome").value,
+              email: document.getElementById("usrEmail").value,
+              telefone: document.getElementById("usrTelefone").value,
+              nivel: document.getElementById("usrNivel").value,
+            },
+          };
+
+          try {
+            const data = await sendApi(payload);
+            box.className =
+              "p-3 rounded-lg text-sm bg-slate-100 text-slate-800 border border-slate-300";
+            box.textContent = `Usuário criado com sucesso! ID: ${data.id}`;
+          } catch (err) {
+            box.className = "p-3 rounded-lg text-sm bg-red-100 text-red-800";
+            box.textContent = "Erro ao criar usuário.";
+          }
+          box.classList.remove("hidden");
+        });
+    </script>
+  </body>
+</html>
