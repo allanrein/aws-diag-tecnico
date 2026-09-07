@@ -1,122 +1,126 @@
 import json
 import os
 import uuid
-from datetime import datetime
 import boto3
 
+# Inicialização do SDK do DynamoDB
 dynamodb = boto3.resource('dynamodb')
 
-# Instância das tabelas a partir das variáveis de ambiente configuradas no Terraform
-table_diagnosticos = dynamodb.Table(os.environ.get('TABLE_DIAGNOSTICOS'))
-table_usuarios     = dynamodb.Table(os.environ.get('TABLE_USUARIOS'))
-table_linhas       = dynamodb.Table(os.environ.get('TABLE_LINHAS'))
-table_equipamentos = dynamodb.Table(os.environ.get('TABLE_EQUIPAMENTOS'))
-table_defeitos     = dynamodb.Table(os.environ.get('TABLE_DEFEITOS'))
+# Nomes das tabelas no DynamoDB (podem vir de variáveis de ambiente ou do padrão do main.tf)
+TABELA_DIAGNOSTICOS = os.environ.get('TABELA_DIAGNOSTICOS', 'diagnosticos_tecnicos')
+TABELA_USUARIOS = os.environ.get('TABELA_USUARIOS', 'usuarios')
+TABELA_LINHAS = os.environ.get('TABELA_LINHAS', 'linhas')
+TABELA_EQUIPAMENTOS = os.environ.get('TABELA_EQUIPAMENTOS', 'equipamentos')
 
-def response_json(status_code, body):
-    """Padroniza a resposta HTTP com suporte a CORS"""
+# Cabeçalhos padrão para habilitar CORS
+HEADERS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+}
+
+def build_response(status_code, body):
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        },
+        'headers': HEADERS,
         'body': json.dumps(body, ensure_ascii=False)
     }
 
 def lambda_handler(event, context):
+    http_method = event.get('requestContext', {}).get('http', {}).get('method', '')
+    raw_path = event.get('rawPath', '')
+
+    # Tratamento para requisições Preflight (CORS)
+    if http_method == 'OPTIONS':
+        return build_response(200, {'message': 'CORS OK'})
+
     try:
         body = json.loads(event.get('body') or '{}')
-        acao = body.get('acao')
+    except Exception:
+        body = {}
 
-        # 1. BUSCAR DIAGNÓSTICO RÁPIDO (Mantém compatibilidade com o PWA)
-        if acao == 'buscar_diagnostico' or ('codigo_erro' in body and not acao):
-            codigo = body.get('codigo_erro')
-            res = table_diagnosticos.get_item(Key={'codigo_erro': codigo})
-            item = res.get('Item', {})
-            return response_json(200, {
-                'solucao': item.get('procedimento', 'Código de erro não localizado no sistema.')
+    # ROTA: POST /login
+    if raw_path == '/login' and http_method == 'POST':
+        usuario = body.get('usuario')
+        senha = body.get('senha')
+
+        tabela = dynamodb.Table(TABELA_USUARIOS)
+        resposta = tabela.get_item(Key={'usuario': usuario})
+        item = resposta.get('Item')
+
+        if item and item.get('senha') == senha:
+            return build_response(200, {
+                'usuario': item['usuario'],
+                'role': item.get('role', 'tecnico')
             })
+        return build_response(401, {'error': 'Usuário ou senha incorretos'})
 
-        # 2. GESTÃO DE USUÁRIOS
-        elif acao == 'cadastrar_usuario':
-            dados = body.get('dados', {})
-            user_id = str(uuid.uuid4())
-            item = {
-                'id': user_id,
-                'nome': dados.get('nome'),
-                'sobrenome': dados.get('sobrenome'),
-                'email': dados.get('email'),
-                'telefone': dados.get('telefone'),
-                'nivel': dados.get('nivel', 'tecnico'), # 'admin' ou 'tecnico'
-                'ativo': True,
-                'data_criacao': datetime.utcnow().isoformat()
-            }
-            table_usuarios.put_item(Item=item)
-            return response_json(201, {'mensagem': 'Usuário cadastrado com sucesso', 'id': user_id})
+    # ROTA: GET /linhas (Para popular o menu suspenso)
+    elif raw_path == '/linhas' and http_method == 'GET':
+        tabela = dynamodb.Table(TABELA_LINHAS)
+        resposta = tabela.scan()
+        return build_response(200, resposta.get('Items', []))
 
-        elif acao == 'listar_usuarios':
-            res = table_usuarios.scan()
-            return response_json(200, {'usuarios': res.get('Items', [])})
+    # ROTA: GET /equipamentos (Para popular o menu suspenso)
+    elif raw_path == '/equipamentos' and http_method == 'GET':
+        tabela = dynamodb.Table(TABELA_EQUIPAMENTOS)
+        resposta = tabela.scan()
+        return build_response(200, resposta.get('Items', []))
 
-        # 3. GESTÃO DE LINHAS DE PRODUÇÃO
-        elif acao == 'cadastrar_linha':
-            dados = body.get('dados', {})
-            linha_id = str(uuid.uuid4())
-            item = {
-                'id': linha_id,
-                'nome': dados.get('nome'),
-                'setor': dados.get('setor', '')
-            }
-            table_linhas.put_item(Item=item)
-            return response_json(201, {'mensagem': 'Linha cadastrada com sucesso', 'id': linha_id})
+    # ROTA: GET /usuarios (Área de administração)
+    elif raw_path == '/usuarios' and http_method == 'GET':
+        tabela = dynamodb.Table(TABELA_USUARIOS)
+        resposta = tabela.scan()
+        itens = resposta.get('Items', [])
+        for item in itens:
+            item['senha'] = '***'  # Oculta a senha em listagens gerais
+        return build_response(200, itens)
 
-        elif acao == 'listar_linhas':
-            res = table_linhas.scan()
-            return response_json(200, {'linhas': res.get('Items', [])})
+    # ROTA: POST /usuarios (Criar ou atualizar senhas/funções)
+    elif raw_path == '/usuarios' and http_method == 'POST':
+        tabela = dynamodb.Table(TABELA_USUARIOS)
+        dados_usuario = {
+            'usuario': body.get('usuario'),
+            'senha': body.get('senha'),
+            'role': body.get('role', 'tecnico')
+        }
+        tabela.put_item(Item=dados_usuario)
+        return build_response(201, {'message': 'Usuário salvo com sucesso'})
 
-        # 4. GESTÃO DE EQUIPAMENTOS
-        elif acao == 'cadastrar_equipamento':
-            dados = body.get('dados', {})
-            eq_id = str(uuid.uuid4())
-            item = {
-                'id': eq_id,
-                'nome': dados.get('nome'),
-                'id_linha': dados.get('id_linha'),
-                'tag_patrimonio': dados.get('tag_patrimonio', '')
-            }
-            table_equipamentos.put_item(Item=item)
-            return response_json(201, {'mensagem': 'Equipamento cadastrado com sucesso', 'id': eq_id})
+    # ROTA: GET /diagnosticos (Busca de ocorrências registradas)
+    elif raw_path == '/diagnosticos' and http_method == 'GET':
+        tabela = dynamodb.Table(TABELA_DIAGNOSTICOS)
+        params = event.get('queryStringParameters') or {}
+        termo_busca = params.get('busca', '').lower()
 
-        elif acao == 'listar_equipamentos':
-            res = table_equipamentos.scan()
-            return response_json(200, {'equipamentos': res.get('Items', [])})
+        resposta = tabela.scan()
+        itens = resposta.get('Items', [])
 
-        # 5. REGISTRO DE DEFEITOS / OCORRÊNCIAS
-        elif acao == 'registrar_defeito':
-            dados = body.get('dados', {})
-            def_id = str(uuid.uuid4())
-            item = {
-                'id': def_id,
-                'id_linha': dados.get('id_linha'),
-                'id_equipamento': dados.get('id_equipamento'),
-                'id_user': dados.get('id_user'),
-                'descricao': dados.get('descricao'),
-                'solucao_aplicada': dados.get('solucao_aplicada', ''),
-                'status': dados.get('status', 'Aberto'),
-                'data_registro': datetime.utcnow().isoformat()
-            }
-            table_defeitos.put_item(Item=item)
-            return response_json(201, {'mensagem': 'Defeito registrado com sucesso', 'id': def_id})
+        if termo_busca:
+            itens = [
+                i for i in itens
+                if termo_busca in str(i.get('codigo_falha', '')).lower()
+                or termo_busca in str(i.get('descricao_solucao', '')).lower()
+                or termo_busca in str(i.get('id_linha', '')).lower()
+                or termo_busca in str(i.get('id_equipamento', '')).lower()
+            ]
 
-        elif acao == 'listar_defeitos':
-            res = table_defeitos.scan()
-            return response_json(200, {'defeitos': res.get('Items', [])})
+        return build_response(200, itens)
 
-        else:
-            return response_json(400, {'erro': 'Ação não informada ou inválida.'})
+    # ROTA: POST /diagnosticos (Registrar nova ocorrência técnica)
+    elif raw_path == '/diagnosticos' and http_method == 'POST':
+        tabela = dynamodb.Table(TABELA_DIAGNOSTICOS)
+        novo_registro = {
+            'id': str(uuid.uuid4()),
+            'id_linha': body.get('id_linha'),
+            'id_equipamento': body.get('id_equipamento'),
+            'id_tecnico': body.get('id_tecnico'),
+            'codigo_falha': body.get('codigo_falha'),
+            'descricao_solucao': body.get('descricao_solucao'),
+            'data': body.get('data')
+        }
+        tabela.put_item(Item=novo_registro)
+        return build_response(201, {'message': 'Ocorrência salva com sucesso'})
 
-    except Exception as e:
-        return response_json(500, {'erro': str(e)})
+    return build_response(404, {'error': 'Rota não encontrada'})
