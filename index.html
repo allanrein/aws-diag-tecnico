@@ -3,359 +3,438 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de Auxílio Técnico</title>
+    <title>Diagnóstico Técnico Serverless</title>
+    <link rel="manifest" href="manifest.json" />
+    <link
+      rel="apple-touch-icon"
+      href="https://img.icons8.com/color/512/maintenance.png"
+    />
+    <meta name="theme-color" content="#0284c7" />
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body
-    class="bg-slate-100 min-h-screen text-slate-800 flex flex-col items-center p-3 sm:p-6"
+    class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans"
   >
-    <main
-      class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200"
+    <!-- TELA DE LOGIN (Oculta o sistema até autenticar) -->
+    <div
+      id="login-screen"
+      class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50"
     >
-      <!-- Cabeçalho -->
-      <header
-        class="bg-slate-900 text-white p-5 flex items-center justify-between"
+      <div
+        class="bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-800 w-full max-w-md shadow-2xl space-y-6"
       >
-        <div>
-          <h1 class="text-xl font-bold tracking-wide">Auxílio Técnico Cloud</h1>
-          <p class="text-xs text-slate-400">
-            Gestão Industrial & Diagnósticos AWS
+        <div class="text-center">
+          <div
+            class="inline-flex p-3 bg-sky-950 rounded-xl text-sky-400 mb-3 border border-sky-800"
+          >
+            <svg
+              class="w-8 h-8"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d=" "
+              ></path>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-100">Acesso ao Sistema</h2>
+          <p class="text-xs text-slate-400 mt-1">
+            Insira suas credenciais técnicas
           </p>
         </div>
-        <span
-          class="bg-blue-600 text-xs px-3 py-1 rounded-full font-mono font-semibold"
-          >v2.0</span
+
+        <form onsubmit="executarLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1"
+              >Usuário / RE</label
+            >
+            <input
+              type="text"
+              id="login-user"
+              required
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Senha</label>
+            <input
+              type="password"
+              id="login-pass"
+              required
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+            />
+          </div>
+          <button
+            type="submit"
+            id="btn-login"
+            class="w-full bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-lg text-sm font-semibold transition"
+          >
+            Entrar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL DO SISTEMA -->
+    <div
+      id="app-screen"
+      class="hidden flex-1 max-w-4xl mx-auto p-4 sm:p-6 w-full"
+    >
+      <!-- Header -->
+      <header
+        class="flex justify-between items-center pb-4 mb-6 border-b border-slate-800"
+      >
+        <div>
+          <h1 class="text-xl font-bold text-sky-400">⚡ Diagnóstico Técnico</h1>
+          <p class="text-xs text-slate-400">
+            Técnico Ativo:
+            <span id="label-tecnico" class="text-slate-200 font-semibold"
+              >--</span
+            >
+          </p>
+        </div>
+        <button
+          onclick="logout()"
+          class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition"
         >
+          Sair
+        </button>
       </header>
 
       <!-- Navegação por Abas -->
-      <nav class="flex border-b border-slate-200 bg-slate-50">
+      <div
+        class="flex gap-2 mb-6 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs sm:text-sm"
+      >
         <button
-          onclick="switchTab('tab-consulta')"
-          id="btn-tab-consulta"
-          class="flex-1 py-3 text-sm font-semibold text-blue-600 border-b-2 border-blue-600 transition"
+          onclick="switchTab('consultar')"
+          id="tab-btn-consultar"
+          class="flex-1 py-2 rounded-lg font-semibold bg-sky-600 text-white"
         >
-          🔍 Consulta
+          🔍 Consultar
         </button>
         <button
-          onclick="switchTab('tab-defeito')"
-          id="btn-tab-defeito"
-          class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition"
+          onclick="switchTab('cadastrar')"
+          id="tab-btn-cadastrar"
+          class="flex-1 py-2 rounded-lg font-semibold text-slate-400 hover:text-white"
         >
-          ⚠️ Defeitos
+          ➕ Ocorrência
         </button>
+        <!-- Aba visível apenas para Usuários Admin -->
         <button
-          onclick="switchTab('tab-admin')"
-          id="btn-tab-admin"
-          class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition"
+          onclick="switchTab('admin')"
+          id="tab-btn-admin"
+          class="hidden flex-1 py-2 rounded-lg font-semibold text-slate-400 hover:text-white"
         >
-          👤 Admin
+          ⚙️ Usuários (Admin)
         </button>
-      </nav>
-
-      <div class="p-6">
-        <!-- ABA 1: CONSULTA DE DIAGNÓSTICO -->
-        <section id="tab-consulta" class="space-y-4">
-          <h2 class="text-lg font-bold text-slate-900 mb-2">
-            Consulta Rápida de Erro
-          </h2>
-          <form id="formConsulta" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1"
-                >CÓDIGO DE ERRO / FALHA</label
-              >
-              <input
-                type="text"
-                id="codigoErro"
-                placeholder="Ex: E-101"
-                required
-                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 font-mono text-lg uppercase outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow transition"
-            >
-              Buscar Procedimento
-            </button>
-          </form>
-
-          <div
-            id="resConsulta"
-            class="hidden mt-4 p-4 rounded-xl border bg-blue-50 border-blue-200"
-          >
-            <p class="text-xs font-bold text-blue-700 uppercase">
-              Procedimento Recomendado:
-            </p>
-            <p id="txtConsulta" class="text-slate-800 font-medium mt-1"></p>
-          </div>
-        </section>
-
-        <!-- ABA 2: REGISTRO DE DEFEITOS -->
-        <section id="tab-defeito" class="hidden space-y-4">
-          <h2 class="text-lg font-bold text-slate-900 mb-2">
-            Registrar Ocorrência
-          </h2>
-          <form id="formDefeito" class="space-y-3">
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >ID LINHA</label
-                >
-                <input
-                  type="text"
-                  id="defLinha"
-                  placeholder="Ex: LINHA-01"
-                  required
-                  class="w-full p-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >ID EQUIPAMENTO</label
-                >
-                <input
-                  type="text"
-                  id="defEquipamento"
-                  placeholder="Ex: INV-02"
-                  required
-                  class="w-full p-2 border rounded-lg text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1"
-                >ID TÉCNICO (USUÁRIO)</label
-              >
-              <input
-                type="text"
-                id="defUser"
-                placeholder="ID do usuário responsável"
-                required
-                class="w-full p-2 border rounded-lg text-sm"
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1"
-                >DESCRIÇÃO DA FALHA</label
-              >
-              <textarea
-                id="defDescricao"
-                rows="2"
-                placeholder="Descreva o sintoma observado..."
-                required
-                class="w-full p-2 border rounded-lg text-sm"
-              ></textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1"
-                >SOLUÇÃO APLICADA</label
-              >
-              <textarea
-                id="defSolucao"
-                rows="2"
-                placeholder="Ação corretiva realizada..."
-                class="w-full p-2 border rounded-lg text-sm"
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow transition"
-            >
-              Salvar Ocorrência
-            </button>
-          </form>
-          <div
-            id="resDefeito"
-            class="hidden p-3 rounded-lg text-sm font-medium"
-          ></div>
-        </section>
-
-        <!-- ABA 3: ADMIN (CADASTRO DE USUÁRIO) -->
-        <section id="tab-admin" class="hidden space-y-4">
-          <h2 class="text-lg font-bold text-slate-900 mb-2">
-            Cadastrar Novo Usuário
-          </h2>
-          <form id="formUser" class="space-y-3">
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >NOME</label
-                >
-                <input
-                  type="text"
-                  id="usrNome"
-                  required
-                  class="w-full p-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >SOBRENOME</label
-                >
-                <input
-                  type="text"
-                  id="usrSobrenome"
-                  required
-                  class="w-full p-2 border rounded-lg text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1"
-                >E-MAIL</label
-              >
-              <input
-                type="email"
-                id="usrEmail"
-                required
-                class="w-full p-2 border rounded-lg text-sm"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >TELEFONE</label
-                >
-                <input
-                  type="text"
-                  id="usrTelefone"
-                  class="w-full p-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1"
-                  >NÍVEL</label
-                >
-                <select
-                  id="usrNivel"
-                  class="w-full p-2 border rounded-lg text-sm bg-white"
-                >
-                  <option value="tecnico">Técnico</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow transition"
-            >
-              Cadastrar Usuário
-            </button>
-          </form>
-          <div
-            id="resUser"
-            class="hidden p-3 rounded-lg text-sm font-medium"
-          ></div>
-        </section>
       </div>
-    </main>
+
+      <!-- ABA 1: CONSULTAR DEFEITOS -->
+      <section id="tab-consultar" class="space-y-4">
+        <div
+          class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex gap-2"
+        >
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Buscar por sintoma, linha ou equipamento..."
+            class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+          />
+          <button
+            onclick="buscarOcorrencias()"
+            class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+          >
+            Buscar
+          </button>
+        </div>
+        <div id="results-container" class="space-y-3"></div>
+      </section>
+
+      <!-- ABA 2: REGISTRAR OCORRÊNCIA -->
+      <section
+        id="tab-cadastrar"
+        class="hidden bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4"
+      >
+        <form onsubmit="salvarOcorrencia(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1"
+                >Linha de Produção</label
+              >
+              <select
+                id="select-linha"
+                required
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500 text-slate-200"
+              >
+                <option value="">Carregando linhas...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1"
+                >Equipamento</label
+              >
+              <select
+                id="select-equipamento"
+                required
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500 text-slate-200"
+              >
+                <option value="">Carregando equipamentos...</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1"
+              >Sintoma / Falha Observada</label
+            >
+            <input
+              type="text"
+              id="cad-falha"
+              required
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1"
+              >Ação Técnica / Solução Aplicada</label
+            >
+            <textarea
+              id="cad-solucao"
+              rows="3"
+              required
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+            ></textarea>
+          </div>
+
+          <button
+            type="submit"
+            id="btn-salvar-ocorrencia"
+            class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg text-sm font-semibold transition"
+          >
+            Registrar Ocorrência
+          </button>
+        </form>
+      </section>
+
+      <!-- ABA 3: GESTÃO DE USUÁRIOS (ADMIN) -->
+      <section id="tab-admin" class="hidden space-y-6">
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+          <h3 class="text-sm font-bold text-sky-400 mb-4">
+            Cadastrar / Gerar Senha de Usuário
+          </h3>
+          <form
+            onsubmit="salvarUsuario(event)"
+            class="grid grid-cols-1 sm:grid-cols-3 gap-4"
+          >
+            <input
+              type="text"
+              id="admin-user-name"
+              placeholder="Nome / Identificador"
+              required
+              class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+            />
+            <div class="flex gap-1">
+              <input
+                type="text"
+                id="admin-user-pass"
+                placeholder="Senha"
+                required
+                class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onclick="gerarSenhaRandomica()"
+                class="bg-slate-700 hover:bg-slate-600 px-2 rounded-lg text-xs"
+              >
+                Gerar
+              </button>
+            </div>
+            <select
+              id="admin-user-role"
+              class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="tecnico">Técnico</option>
+              <option value="admin">Administrador</option>
+            </select>
+            <button
+              type="submit"
+              class="sm:col-span-3 bg-sky-600 hover:bg-sky-500 text-white py-2 rounded-lg text-sm font-semibold"
+            >
+              Salvar Usuário
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+          <h3 class="text-sm font-bold text-slate-300 mb-3">
+            Usuários Cadastrados
+          </h3>
+          <div id="users-list-container" class="space-y-2"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RODAPÉ FIXO -->
+    <footer
+      class="py-4 border-t border-slate-800 text-center text-xs text-slate-500 mt-auto"
+    >
+      Desenvolvido por
+      <a
+        href="https://github.com/allanrein"
+        target="_blank"
+        class="text-sky-400 hover:underline font-medium"
+        >Allan Rein</a
+      >
+    </footer>
 
     <script>
-      // Cole aqui a URL exata do seu API Gateway gerada pelo Terraform
       const API_URL =
-        "https://rshjl3023l.execute-api.us-east-1.amazonaws.com/diagnostico";
+        "https://rshjl3023l.execute-api.us-east-1.amazonaws.com/diagnostico"; // Inserir o endpoint retornado pelo terraform output
+      let usuarioLogado = null;
 
-      // Troca de Abas
-      function switchTab(tabId) {
-        ["tab-consulta", "tab-defeito", "tab-admin"].forEach((id) => {
-          document.getElementById(id).classList.add("hidden");
-          document.getElementById(`btn-${id}`).className =
-            "flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition";
-        });
-        document.getElementById(tabId).classList.remove("hidden");
-        document.getElementById(`btn-${tabId}`).className =
-          "flex-1 py-3 text-sm font-semibold text-blue-600 border-b-2 border-blue-600 transition";
+      async function executarLogin(e) {
+        e.preventDefault();
+        const usuario = document.getElementById("login-user").value;
+        const senha = document.getElementById("login-pass").value;
+
+        try {
+          const res = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ usuario, senha }),
+          });
+
+          if (!res.ok) throw new Error("Credenciais inválidas");
+          const data = await res.json();
+
+          usuarioLogado = data;
+          document.getElementById("label-tecnico").innerText =
+            `${data.usuario} (${data.role})`;
+          document.getElementById("login-screen").classList.add("hidden");
+          document.getElementById("app-screen").classList.remove("hidden");
+
+          // Exibe a aba Admin se a role for admin
+          if (data.role === "admin") {
+            document.getElementById("tab-btn-admin").classList.remove("hidden");
+          }
+
+          carregarDropdowns();
+        } catch (err) {
+          alert(err.message);
+        }
       }
 
-      // Função Auxiliar de Requisição
-      async function sendApi(payload) {
-        const response = await fetch(API_URL, {
+      function logout() {
+        usuarioLogado = null;
+        document.getElementById("app-screen").classList.add("hidden");
+        document.getElementById("login-screen").classList.remove("hidden");
+      }
+
+      function switchTab(tab) {
+        ["consultar", "cadastrar", "admin"].forEach((t) => {
+          const sec = document.getElementById(`tab-${t}`);
+          const btn = document.getElementById(`tab-btn-${t}`);
+          if (sec) sec.classList.toggle("hidden", t !== tab);
+          if (btn)
+            btn.className =
+              t === tab
+                ? "flex-1 py-2 rounded-lg font-semibold bg-sky-600 text-white"
+                : "flex-1 py-2 rounded-lg font-semibold text-slate-400 hover:text-white";
+        });
+
+        if (tab === "admin") carregarUsuarios();
+      }
+
+      async function carregarDropdowns() {
+        try {
+          const [resLinhas, resEquip] = await Promise.all([
+            fetch(`${API_URL}/linhas`),
+            fetch(`${API_URL}/equipamentos`),
+          ]);
+
+          const linhas = await resLinhas.json();
+          const equipamentos = await resEquip.json();
+
+          document.getElementById("select-linha").innerHTML = linhas
+            .map((l) => `<option value="${l.id}">${l.nome}</option>`)
+            .join("");
+          document.getElementById("select-equipamento").innerHTML = equipamentos
+            .map((e) => `<option value="${e.id}">${e.nome}</option>`)
+            .join("");
+        } catch (err) {
+          console.error("Erro ao carregar selects do BD:", err);
+        }
+      }
+
+      async function salvarOcorrencia(e) {
+        e.preventDefault();
+        const payload = {
+          id_linha: document.getElementById("select-linha").value,
+          id_equipamento: document.getElementById("select-equipamento").value,
+          id_tecnico: usuarioLogado.usuario,
+          codigo_falha: document.getElementById("cad-falha").value,
+          descricao_solucao: document.getElementById("cad-solucao").value,
+          data: new Date().toISOString(),
+        };
+
+        const res = await fetch(`${API_URL}/diagnosticos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        return await response.json();
+
+        if (res.ok) {
+          alert("Ocorrência registrada com sucesso!");
+          switchTab("consultar");
+        }
       }
 
-      // 1. Evento: Consulta Diagnóstico
-      document
-        .getElementById("formConsulta")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const codigo = document
-            .getElementById("codigoErro")
-            .value.trim()
-            .toUpperCase();
-          const resCard = document.getElementById("resConsulta");
-          const txt = document.getElementById("txtConsulta");
+      function gerarSenhaRandomica() {
+        const chars =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+        let pass = "";
+        for (let i = 0; i < 10; i++)
+          pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        document.getElementById("admin-user-pass").value = pass;
+      }
 
-          const data = await sendApi({
-            acao: "buscar_diagnostico",
-            codigo_erro: codigo,
-          });
-          txt.textContent = data.solucao || "Código não cadastrado.";
-          resCard.classList.remove("hidden");
+      async function carregarUsuarios() {
+        const res = await fetch(`${API_URL}/usuarios`);
+        const users = await res.json();
+        document.getElementById("users-list-container").innerHTML = users
+          .map(
+            (u) => `
+        <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg text-xs">
+          <div><span class="font-bold text-sky-400">${u.usuario}</span> (${u.role})</div>
+          <span class="text-slate-500">Senha: ***</span>
+        </div>
+      `,
+          )
+          .join("");
+      }
+
+      async function salvarUsuario(e) {
+        e.preventDefault();
+        const payload = {
+          usuario: document.getElementById("admin-user-name").value,
+          senha: document.getElementById("admin-user-pass").value,
+          role: document.getElementById("admin-user-role").value,
+        };
+
+        await fetch(`${API_URL}/usuarios`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
 
-      // 2. Evento: Registrar Defeito
-      document
-        .getElementById("formDefeito")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const box = document.getElementById("resDefeito");
-          const payload = {
-            acao: "registrar_defeito",
-            dados: {
-              id_linha: document.getElementById("defLinha").value,
-              id_equipamento: document.getElementById("defEquipamento").value,
-              id_user: document.getElementById("defUser").value,
-              descricao: document.getElementById("defDescricao").value,
-              solucao_aplicada: document.getElementById("defSolucao").value,
-              status: "Resolvido",
-            },
-          };
-
-          try {
-            const data = await sendApi(payload);
-            box.className =
-              "p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800";
-            box.textContent = `Sucesso! ID da ocorrência: ${data.id}`;
-          } catch (err) {
-            box.className = "p-3 rounded-lg text-sm bg-red-100 text-red-800";
-            box.textContent = "Erro ao registrar ocorrência.";
-          }
-          box.classList.remove("hidden");
-        });
-
-      // 3. Evento: Cadastrar Usuário
-      document
-        .getElementById("formUser")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const box = document.getElementById("resUser");
-          const payload = {
-            acao: "cadastrar_usuario",
-            dados: {
-              nome: document.getElementById("usrNome").value,
-              sobrenome: document.getElementById("usrSobrenome").value,
-              email: document.getElementById("usrEmail").value,
-              telefone: document.getElementById("usrTelefone").value,
-              nivel: document.getElementById("usrNivel").value,
-            },
-          };
-
-          try {
-            const data = await sendApi(payload);
-            box.className =
-              "p-3 rounded-lg text-sm bg-slate-100 text-slate-800 border border-slate-300";
-            box.textContent = `Usuário criado com sucesso! ID: ${data.id}`;
-          } catch (err) {
-            box.className = "p-3 rounded-lg text-sm bg-red-100 text-red-800";
-            box.textContent = "Erro ao criar usuário.";
-          }
-          box.classList.remove("hidden");
-        });
+        alert("Usuário atualizado no DynamoDB!");
+        carregarUsuarios();
+      }
     </script>
   </body>
 </html>
