@@ -381,7 +381,7 @@
           data: new Date().toISOString(),
         };
 
-        const res = await fetch(`${API_URL}/diagnosticos`, {
+        const res = await fetch(`${API_URL}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
