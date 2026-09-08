@@ -362,18 +362,33 @@
       }
 
       function switchTab(tab) {
+        const isAdmin = usuarioLogado && usuarioLogado.role === "admin";
+
         ["consultar", "cadastrar", "admin"].forEach((t) => {
           const sec = document.getElementById(`tab-${t}`);
           const btn = document.getElementById(`tab-btn-${t}`);
-          if (sec) sec.classList.toggle("hidden", t !== tab);
-          if (btn)
-            btn.className =
-              t === tab
-                ? "flex-1 py-2 rounded-lg font-semibold bg-sky-600 text-white"
-                : "flex-1 py-2 rounded-lg font-semibold text-slate-400 hover:text-white";
+
+          if (sec) {
+            sec.classList.toggle("hidden", t !== tab);
+          }
+
+          if (btn) {
+            // Estilização base do botão
+            const activeClasses =
+              "flex-1 py-2 rounded-lg font-semibold bg-sky-600 text-white";
+            const inactiveClasses =
+              "flex-1 py-2 rounded-lg font-semibold text-slate-400 hover:text-white";
+
+            btn.className = t === tab ? activeClasses : inactiveClasses;
+
+            // Mantém a aba Oculta se o usuário não for administrador
+            if (t === "admin" && !isAdmin) {
+              btn.classList.add("hidden");
+            }
+          }
         });
 
-        if (tab === "admin") carregarUsuarios();
+        if (tab === "admin" && isAdmin) carregarUsuarios();
       }
 
       async function carregarDropdowns() {
